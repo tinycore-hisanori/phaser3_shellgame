@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+
+    <meta name="viewport"
+        content="width = device-width, initial-scale = 1.0, minimum-scale = 1, maximum-scale = 1, user-scalable = no, viewport-fit=cover,minimal-ui" />
+    <title></title>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/howler@2.2.3/dist/howler.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <script>
+        var seOver = new Howl({
+            src: ['fuseikai.mp3']
+        });
+
+
+        var seClear = new Howl({
+            src: ['seikai.mp3']
+        });
+
+
+        var gameWidth = 720;
+        var gameHeight = 1280;
+        var clickButton;
+        var currentScene = null;
+        var bGame = false;
+        var timeCnt = 0;
+        var selectedCup = -1;
+        var cntRemainWait;
+        var cupMoveDuration;
+        var gameState = 0;
+        var cntShuffle = 0;
+        var pos1 = { x: 100, y: 500 };
+        var pos2 = { x: 350, y: 500 };
+        var pos3 = { x: 600, y: 500 };
+        var cup1, cup2, cup3;
+        var blackout;
+        var resultObject;
+        var bossObject;
+
+
+
+
+        class titleScene extends Phaser.Scene {
+            constructor() {
+                super({ key: "titleScene", active: true });
+            }
+            preload() {
+                this.load.image("bg000", "./title.png");
+            }
+            create() {
+                currentScene = this;
+
+                var bg001 = this.add
+                    .tileSprite(0, 0, 360, 640, 'bg000')
+                    .setScale(2.0)
+                    .setOrigin(0);
+                currentScene.cameras.main.setBackgroundColor(0xaaaaaa);
+                clickButton = this.add
+                    .text(100, 400, "START TO CLICK")
+                    .setStroke("#0000ff", 4)
+                    .setBackgroundColor("#ddbcff")
+                    .setFontSize("60px")
+                    .setColor("#0f0")
+                    .setInteractive();
+                clickButton.on(
+                    "pointerdown",
+                    () => {
+                        this.scene.start("gameScene");
+                    },
+                    this);
+                this.tweens.add({
+                    targets: clickButton,
+                    alpha: 0.5,
+                    ease: 'Cubic.easeOut',
+                    duration: 500,
+                    repeat: -1,
+                    yoyo: true
+                });
+            }
+        }
+
+
+
+        class cupObject extends Phaser.GameObjects.Sprite {
+            constructor(scene, _texName, x, y, pos) {
+                super(scene, x, y, _texName);
+                scene.add.existing(this);
+                this.cntTime = 0;
+                this.currentPos = pos;
+                this.hasCoin = false;
+                this.setScale(0.6);
+                this.setFrame(2);
+            }
+            preUpdate(time, delta) {
+                super.preUpdate(time, delta);
+            }
+            setCoin(_bVal) {
+                this.hasCoin = _bVal;
+            }
+            getCoin() {
+                return (this.hasCoin);
+            }
+        }
+
+
+        class gameScene extends Phaser.Scene {
+            constructor() {
+                super({ key: "gameScene", active: false });
+            }
+            preload() {
+                this.load.image("bgShell", "./bg.jpg");
+                this.load.spritesheet("cup", "./cupSprite.png", {
+                    frameWidth: 312,
+                    frameHeight: 474
+                });
+                this.load.spritesheet("result", "./resultSprite.png", {
+                    frameWidth: 300,
+                    frameHeight: 80
+                });
+                this.load.spritesheet("pien", "./pien.png", {
+                    frameWidth: 300,
+                    frameHeight: 140
+                });
+                this.load.image("blackout", "./blackout.png");
+            }
+            create() {
+                currentScene = this;
+                currentScene.add
+                    .tileSprite(0, 0, gameWidth, gameHeight, "bgShell")
+                    .setOrigin(0)
+                    .setScale(2.0)
+                    .setScrollFactor(0);
+
+                var pos1 = { x: 100, y: 500 };
+                var pos2 = { x: 350, y: 500 };
+                var pos3 = { x: 600, y: 500 };
+                cup1 = new cupObject(this, "cup", pos1.x, pos1.y, 1);
+                cup2 = new cupObject(this, "cup", pos2.x, pos2.y, 2);
+                cup3 = new cupObject(this, "cup", pos3.x, pos3.y, 3);
+
+
+                cup1.setInteractive();
+                cup2.setInteractive();
+                cup3.setInteractive();
+                cup1.on(
+                    "pointerdown",
+                    () => {
+                        if (gameState == 5) {
+                            selectedCup = 1;
+                        }
+                    }, this);
+                cup2.on(
+                    "pointerdown",
+                    () => {
+                        if (gameState == 5) {
+                            selectedCup = 2;
+                        }
+                    }, this);
+                cup3.on(
+                    "pointerdown",
+                    () => {
+                        if (gameState == 5) {
+                            selectedCup = 3;
+                        }
+                    }, this);
+
+                resultObject = currentScene.add.sprite(gameWidth / 2, 200, "result")
+                    .setScale(2.0);
+                resultObject.visible = false;
+
+                bossObject = currentScene.add.sprite(gameWidth / 2, 1100, "pien")
+                bossObject.setScale(2.0);
+                bossObject.setFrame(0);
+
+                blackout = currentScene.add.image(0, 0, "blackout")
+                    .setOrigin(0)
+                    .setScale(3.0);
+                blackout.visible = false;
+
+                cupMoveDuration = 500;
+                timeCnt = 0;
+                bGame = true;
+            }
+
+            update() {
+                if (bGame == true) {
+                    timeCnt = (timeCnt + 1) % 6;
+                    if (timeCnt == 0) {
+                        cntRemainWait = cntRemainWait - 1;
+                        if (cntRemainWait <= 0 && gameState == 1) {
+                            gameState = 2;
+                            cup1.setFrame(2);
+                            cup2.setFrame(2);
+                            cup3.setFrame(2);
+                        }
+                        else if (cntRemainWait <= 0 && gameState == 3) {
+                            if (cntShuffle <= 0) {
+                                gameState = 4;
+                            } else {
+                                gameState = 2;
+                            }
+                        }
+                        else if (cntRemainWait <= 0 && gameState == 6) {
+                            gameState = 7;
+                            cup1.setFrame(2);
+                            cup2.setFrame(2);
+                            cup3.setFrame(2);
+                        }
+                        else if (cntRemainWait <= 0 && gameState == 8) {
+                            gameState = 0;
+                            blackout.visible = false;
+                        }
+                    }
+                    if (gameState == 0) {
+                        bossObject.setFrame(1);//コインはここ
+                        //Init
+                        cntShuffle = Math.floor(Math.random() * 5) + 3;//3～7回シャッフル
+                        timeCnt = 0;
+                        cntRemainWait = 10;
+
+                        var coinPos = Math.floor(Math.random() * 3);//0, 1, 2のどれか
+                        cup1.setFrame(2);
+                        cup2.setFrame(2);
+                        cup3.setFrame(2);
+
+                        if (coinPos == 0) {
+                            cup1.setCoin(true);
+                            cup1.setFrame(1);
+                            cup2.setCoin(false);
+                            cup3.setCoin(false);
+                        }
+                        else if (coinPos == 1) {
+                            cup1.setCoin(false);
+                            cup2.setCoin(true);
+                            cup2.setFrame(1);
+                            cup3.setCoin(false);
+                        }
+                        else if (coinPos == 2) {
+                            cup1.setCoin(false);
+                            cup2.setCoin(false);
+                            cup3.setCoin(true);
+                            cup3.setFrame(1);
+                        }
+
+                        //
+                        gameState = 1;
+                    }
+                    else if (gameState == 2) {
+                        bossObject.setFrame(2);//シャッフルするぞ
+                        cntShuffle = cntShuffle - 1;
+                        cntRemainWait = (cupMoveDuration / 100);
+                        gameState = 3;
+                        //Get Pattern 
+                        //Type:00 = 1->2, 2->1, 3-3(NONE)
+                        //Type:01 = 1->3, 2->2(NONE), 3->1
+                        //Type:02 = 1->2, 2->3, 3->1
+                        //Type:03 = 1->3, 3->2, 2->1
+                        var a = Math.floor(Math.random() * 4);
+                        var ary = [cup1, cup2, cup3];
+                        switch (a) {
+                            case 0://1->2, 2->1, 3-3(NONE)
+                                for (var nLoop = 0; nLoop < 3; nLoop++) {
+                                    if (ary[nLoop].currentPos == 1) {
+                                        doMoveAtoB(ary[nLoop]);
+                                        ary[nLoop].currentPos = 2;
+                                    } else if (ary[nLoop].currentPos == 2) {
+                                        doMoveBtoA(ary[nLoop]);
+                                        ary[nLoop].currentPos = 1;
+                                    }
+                                }
+                                break;
+
+                            case 1://1->3, 2->2(NONE), 3->1
+                                for (var nLoop = 0; nLoop < 3; nLoop++) {
+                                    if (ary[nLoop].currentPos == 1) {
+                                        doMoveAtoC(ary[nLoop]);
+                                        ary[nLoop].currentPos = 3;
+                                    } else if (ary[nLoop].currentPos == 3) {
+                                        doMoveCtoA(ary[nLoop]);
+                                        ary[nLoop].currentPos = 1;
+                                    }
+                                }
+                                break;
+
+                            case 2://1->2, 2->3, 3->1
+                                for (var nLoop = 0; nLoop < 3; nLoop++) {
+                                    if (ary[nLoop].currentPos == 1) {
+                                        doMoveAtoB(ary[nLoop]);
+                                        ary[nLoop].currentPos = 2;
+                                    } else if (ary[nLoop].currentPos == 2) {
+                                        doMoveBtoC(ary[nLoop]);
+                                        ary[nLoop].currentPos = 3;
+                                    }
+                                    else if (ary[nLoop].currentPos == 3) {
+                                        doMoveCtoA(ary[nLoop]);
+                                        ary[nLoop].currentPos = 1;
+                                    }
+                                }
+                                break;
+
+
+                            case 3:// 1->3, 3->2, 2->1
+                                for (var nLoop = 0; nLoop < 3; nLoop++) {
+                                    if (ary[nLoop].currentPos == 1) {
+                                        doMoveAtoC(ary[nLoop]);
+                                        ary[nLoop].currentPos = 3;
+                                    } else if (ary[nLoop].currentPos == 3) {
+                                        doMoveCtoB(ary[nLoop]);
+                                        ary[nLoop].currentPos = 2;
+                                    }
+                                    else if (ary[nLoop].currentPos == 2) {
+                                        doMoveBtoA(ary[nLoop]);
+                                        ary[nLoop].currentPos = 1;
+                                    }
+                                }
+                                break;
+
+                        }
+
+                    } else if (gameState == 4) {//End Shuffled
+                        bossObject.setFrame(3);//コインはどこ？
+                        selectedCup = -1;
+
+                        gameState = 5;//Wait User touch
+                    } else if (gameState == 5 && selectedCup != -1) {
+                        gameState = 6;
+                        cntRemainWait = 10;
+                        resultObject.visible = true;
+                        switch (selectedCup) {
+                            case 1:
+                                if (cup1.getCoin() == true) {
+                                    //正解
+                                    bossObject.setFrame(4);
+                                    seClear.play();
+                                    resultObject.setFrame(0);
+                                    cup1.setFrame(1);
+                                } else {
+                                    //不正解
+                                    bossObject.setFrame(5);
+                                    seOver.play();
+                                    resultObject.setFrame(1);
+                                    cup1.setFrame(0);
+                                }
+                                break;
+                            case 2:
+                                if (cup2.getCoin() == true) {
+                                    //正解
+                                    bossObject.setFrame(4);
+                                    seClear.play();
+                                    resultObject.setFrame(0);
+                                    cup2.setFrame(1);
+                                } else {
+                                    //不正解
+                                    bossObject.setFrame(5);
+                                    seOver.play();
+                                    resultObject.setFrame(1);
+                                    cup2.setFrame(0);
+                                }
+                                break;
+                            case 3:
+                                if (cup3.getCoin() == true) {
+                                    //正解
+                                    bossObject.setFrame(4);
+                                    seClear.play();
+                                    resultObject.setFrame(0);
+                                    cup3.setFrame(1);
+                                } else {
+                                    //不正解
+                                    bossObject.setFrame(5);
+                                    seOver.play();
+                                    resultObject.setFrame(1);
+                                    cup3.setFrame(0);
+                                }
+                                break;
+                        }
+                    } else if (gameState == 7) {
+                        bossObject.setFrame(0);
+                        resultObject.visible = false;
+                        gameState = 8;
+                        cntRemainWait = 10;
+                        blackout.visible = true;
+                        blackout.alpha = 1.0;
+                        currentScene.tweens.add({
+                            targets: blackout,
+                            alpha: 0.0,
+                            ease: 'Cubic.easeOut',
+                            duration: 1000,
+                            repeat: 0,
+                            yoyo: false
+                        });
+                    }
+                }
+            }
+        }
+
+
+        function doMoveAtoB(_cup) {
+            var follower = { t: 0, vec: new Phaser.Math.Vector2() };
+            let path = new Phaser.Curves.Path();
+            path.add(new Phaser.Curves.Line(
+                { x: pos1.x, y: pos1.y },
+                { x: pos2.x, y: pos2.y }));
+            currentScene.tweens.add({
+                targets: follower,
+                t: 1,
+                ease: 'Sine.easeInOut',
+                duration: cupMoveDuration,
+                yoyo: false,
+                repeat: 0,
+                onUpdate: function (tween, target) {
+                    path.getPoint(follower.t, follower.vec);
+                    _cup.x = follower.vec.x;
+                    _cup.y = follower.vec.y;
+                }
+            });
+        }
+
+        function doMoveBtoC(_cup) {
+            var follower = { t: 0, vec: new Phaser.Math.Vector2() };
+            let path = new Phaser.Curves.Path();
+            var spline = new Phaser.Curves.Spline();
+            spline.addPoint(pos2.x, pos2.y);
+            spline.addPoint(((pos3.x - pos2.x) / 2) + pos2.x, pos2.y - 200);
+            spline.addPoint(pos3.x, pos3.y);
+            path.add(spline);
+            currentScene.tweens.add({
+                targets: follower,
+                t: 1,
+                ease: 'Sine.easeInOut',
+                duration: cupMoveDuration,
+                yoyo: false,
+                repeat: 0,
+                onUpdate: function (tween, target) {
+                    path.getPoint(follower.t, follower.vec);
+                    _cup.x = follower.vec.x;
+                    _cup.y = follower.vec.y;
+                }
+            });
+        }
+
+        function doMoveAtoC(_cup) {
+            var follower = { t: 0, vec: new Phaser.Math.Vector2() };
+            let path = new Phaser.Curves.Path();
+            var spline = new Phaser.Curves.Spline();
+            spline.addPoint(pos1.x, pos1.y);
+            spline.addPoint(pos2.x, pos2.y - 400);
+            spline.addPoint(pos3.x, pos3.y);
+            path.add(spline);
+            currentScene.tweens.add({
+                targets: follower,
+                t: 1,
+                ease: 'Sine.easeInOut',
+                duration: cupMoveDuration,
+                yoyo: false,
+                repeat: 0,
+                onUpdate: function (tween, target) {
+                    path.getPoint(follower.t, follower.vec);
+                    _cup.x = follower.vec.x;
+                    _cup.y = follower.vec.y;
+                }
+            });
+        }
+
+        function doMoveCtoA(_cup) {
+            var follower = { t: 0, vec: new Phaser.Math.Vector2() };
+            let path = new Phaser.Curves.Path();
+            var spline = new Phaser.Curves.Spline();
+            spline.addPoint(pos3.x, pos3.y);
+            spline.addPoint(pos2.x, pos2.y + 400);
+            spline.addPoint(pos1.x, pos1.y);
+            path.add(spline);
+            currentScene.tweens.add({
+                targets: follower,
+                t: 1,
+                ease: 'Sine.easeInOut',
+                duration: cupMoveDuration,
+                yoyo: false,
+                repeat: 0,
+                onUpdate: function (tween, target) {
+                    path.getPoint(follower.t, follower.vec);
+                    _cup.x = follower.vec.x;
+                    _cup.y = follower.vec.y;
+                }
+            });
+        }
+
+        function doMoveBtoA(_cup) {
+            var follower = { t: 0, vec: new Phaser.Math.Vector2() };
+            let path = new Phaser.Curves.Path();
+            var spline = new Phaser.Curves.Spline();
+            spline.addPoint(pos2.x, pos2.y);
+            spline.addPoint(pos1.x + ((pos2.x - pos1.x) / 2), pos2.y + 200);
+            spline.addPoint(pos1.x, pos1.y);
+            path.add(spline);
+            currentScene.tweens.add({
+                targets: follower,
+                t: 1,
+                ease: 'Sine.easeInOut',
+                duration: cupMoveDuration,
+                yoyo: false,
+                repeat: 0,
+                onUpdate: function (tween, target) {
+                    path.getPoint(follower.t, follower.vec);
+                    _cup.x = follower.vec.x;
+                    _cup.y = follower.vec.y;
+                }
+            });
+        }
+
+        function doMoveCtoB(_cup) {
+            var follower = { t: 0, vec: new Phaser.Math.Vector2() };
+            let path = new Phaser.Curves.Path();
+            path.add(new Phaser.Curves.Line(
+                { x: pos3.x, y: pos3.y },
+                { x: pos2.x, y: pos2.y }));
+            currentScene.tweens.add({
+                targets: follower,
+                t: 1,
+                ease: 'Sine.easeInOut',
+                duration: cupMoveDuration,
+                yoyo: false,
+                repeat: 0,
+                onUpdate: function (tween, target) {
+                    path.getPoint(follower.t, follower.vec);
+                    _cup.x = follower.vec.x;
+                    _cup.y = follower.vec.y;
+                }
+            });
+        }
+
+
+
+
+
+        var config = {
+            type: Phaser.AUTO,
+            width: gameWidth,
+            height: gameHeight,
+            input: {
+                activePointers: 1 //Max enable of multi touch Points(1-10)
+            },
+            backgroundColor: "#eaffff",
+            autoResize: true,
+            scale: {
+                mode: Phaser.Scale.FIT,
+                autoCenter: Phaser.Scale.CENTER_BOTH,
+            },
+            parent: 'game',
+            audio: { disableWebAudio: true },
+            scene: [titleScene, gameScene]
+        }
+        var game = new Phaser.Game(config);
+
+    </script>
+</body>
+
+</html>
