@@ -6,13 +6,15 @@ Phaser3.jsを使ってHTML5のゲームを作るときに参考にしてもら�
 
 対CPU対戦ゲームとして、「シェルゲーム」を遊ぶことができます。
 
+シャッフルするコップのどこにコインはあるかを当てるゲームです。
+
 # DEMO！
  
 以下のアドレスでプレイすることができます。
 
-[DarumaSan](https://tinycore-hisanori.github.io/phaser3_vsCpuDaruma/)
+[ShellGame](https://tinycore-hisanori.github.io/phaser3_shellgame/)
 
- ![QR01](https://user-images.githubusercontent.com/30931098/143921826-85ac186c-4235-4e5e-8049-c68e868d257e.png)
+ ![QR_815949](https://user-images.githubusercontent.com/30931098/144903079-0471f18b-283a-4e85-a896-3c69eb9a1983.png)
 
 # Features
  
