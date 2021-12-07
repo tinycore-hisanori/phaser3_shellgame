@@ -18,10 +18,14 @@
         var seOver = new Howl({
             src: ['fuseikai.mp3']
         });
-
-
         var seClear = new Howl({
             src: ['seikai.mp3']
+        });
+        var seWin = new Howl({
+            src: ['clear.mp3']
+        });
+        var seLoose = new Howl({
+            src: ['gameover.mp3']
         });
 
 
@@ -44,8 +48,11 @@
         var resultObject;
         var bossObject;
 
+        var currentMatch = 0;
+        var maxMatch = 5;
+        var matchResult = [-1, -1, -1, -1, -1];//-1:NONE, 1:WIN, 0:LOOSE
 
-
+        var viewMatch = [];
 
         class titleScene extends Phaser.Scene {
             constructor() {
@@ -128,6 +135,10 @@
                     frameWidth: 300,
                     frameHeight: 140
                 });
+                this.load.spritesheet("marubatsu", "./marubatsu.png", {
+                    frameWidth: 32,
+                    frameHeight: 32
+                });
                 this.load.image("blackout", "./blackout.png");
             }
             create() {
@@ -171,7 +182,7 @@
                         }
                     }, this);
 
-                resultObject = currentScene.add.sprite(gameWidth / 2, 200, "result")
+                resultObject = currentScene.add.sprite(gameWidth / 2, 130, "result")
                     .setScale(2.0);
                 resultObject.visible = false;
 
@@ -179,10 +190,23 @@
                 bossObject.setScale(2.0);
                 bossObject.setFrame(0);
 
+                viewMatch = [];
+                viewMatch.push(currentScene.add.sprite(100 + 150, 200, "marubatsu"));
+                viewMatch.push(currentScene.add.sprite(150 + 150, 200, "marubatsu"));
+                viewMatch.push(currentScene.add.sprite(200 + 150, 200, "marubatsu"));
+                viewMatch.push(currentScene.add.sprite(250 + 150, 200, "marubatsu"));
+                viewMatch.push(currentScene.add.sprite(300 + 150, 200, "marubatsu"));
+                for (var nLoop = 0; nLoop < viewMatch.length; nLoop++) {
+                    viewMatch[nLoop].visible = false;
+                }
+
                 blackout = currentScene.add.image(0, 0, "blackout")
                     .setOrigin(0)
                     .setScale(3.0);
                 blackout.visible = false;
+
+                currentMatch = 0;
+                matchResult = [-1, -1, -1, -1, -1];
 
                 cupMoveDuration = 500;
                 timeCnt = 0;
@@ -212,10 +236,32 @@
                             cup1.setFrame(2);
                             cup2.setFrame(2);
                             cup3.setFrame(2);
+                            if (currentMatch == maxMatch) {
+                                bGame = false;
+                                gameState = -1;
+                                var tmpWin = 0;
+                                for (var nLoop = 0; nLoop < maxMatch; nLoop++) {
+                                    tmpWin = tmpWin + matchResult[nLoop];
+                                }
+                                if (tmpWin >= 3) {
+                                    resultObject.setFrame(0);
+                                    bossObject.setFrame(6);
+                                    seWin.play();
+                                } else {
+                                    resultObject.setFrame(1);
+                                    bossObject.setFrame(7);
+                                    seLoose.play();
+                                }
+                                resultObject.visible = true;
+                            }
                         }
                         else if (cntRemainWait <= 0 && gameState == 8) {
                             gameState = 0;
                             blackout.visible = false;
+                            for (var nLoop = 0; nLoop < viewMatch.length; nLoop++) {
+                                viewMatch[nLoop].visible = false;
+                            }
+
                         }
                     }
                     if (gameState == 0) {
@@ -327,62 +373,73 @@
                     } else if (gameState == 4) {//End Shuffled
                         bossObject.setFrame(3);//コインはどこ？
                         selectedCup = -1;
-
                         gameState = 5;//Wait User touch
                     } else if (gameState == 5 && selectedCup != -1) {
                         gameState = 6;
                         cntRemainWait = 10;
-                        resultObject.visible = true;
                         switch (selectedCup) {
                             case 1:
                                 if (cup1.getCoin() == true) {
                                     //正解
-                                    bossObject.setFrame(4);
+                                    matchResult[currentMatch] = 1;//WIN
+                                    bossObject.setFrame(4); resultObject.setFrame(0);
                                     seClear.play();
-                                    resultObject.setFrame(0);
                                     cup1.setFrame(1);
                                 } else {
                                     //不正解
+                                    matchResult[currentMatch] = 0;//LOOSE
                                     bossObject.setFrame(5);
                                     seOver.play();
-                                    resultObject.setFrame(1);
                                     cup1.setFrame(0);
                                 }
                                 break;
                             case 2:
                                 if (cup2.getCoin() == true) {
                                     //正解
+                                    matchResult[currentMatch] = 1;//WIN
                                     bossObject.setFrame(4);
                                     seClear.play();
-                                    resultObject.setFrame(0);
                                     cup2.setFrame(1);
                                 } else {
                                     //不正解
+                                    matchResult[currentMatch] = 0;//LOOSE
                                     bossObject.setFrame(5);
                                     seOver.play();
-                                    resultObject.setFrame(1);
                                     cup2.setFrame(0);
                                 }
                                 break;
                             case 3:
                                 if (cup3.getCoin() == true) {
                                     //正解
+                                    matchResult[currentMatch] = 1;//WIN
                                     bossObject.setFrame(4);
                                     seClear.play();
-                                    resultObject.setFrame(0);
                                     cup3.setFrame(1);
                                 } else {
                                     //不正解
+                                    matchResult[currentMatch] = 0;//LOOSE
                                     bossObject.setFrame(5);
                                     seOver.play();
-                                    resultObject.setFrame(1);
                                     cup3.setFrame(0);
                                 }
                                 break;
                         }
+                        for (var nLoop = 0; nLoop < viewMatch.length; nLoop++) {
+                            console.log("" + matchResult[nLoop]+ ", nLooP" + nLoop);
+                            viewMatch[nLoop].visible = true;
+                            if(matchResult[nLoop] == 1){
+                                viewMatch[nLoop].setFrame(0);
+                            } else if(matchResult[nLoop] == 0){
+                                viewMatch[nLoop].setFrame(1);
+                            } else {
+                                viewMatch[nLoop].setFrame(2);
+                            }
+                        }
+                        //n試合目
+                        currentMatch = currentMatch + 1;
+
                     } else if (gameState == 7) {
                         bossObject.setFrame(0);
-                        resultObject.visible = false;
                         gameState = 8;
                         cntRemainWait = 10;
                         blackout.visible = true;
@@ -444,6 +501,7 @@
                 }
             });
         }
+
 
         function doMoveAtoC(_cup) {
             var follower = { t: 0, vec: new Phaser.Math.Vector2() };
